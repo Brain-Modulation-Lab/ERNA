@@ -1,0 +1,26 @@
+# participant config
+PARTICIPANTS_ID:
+  - DM2001
+  - DM2002
+  - DM2003
+  - DM2004
+  - DM2005
+
+
+# argus config
+NAME: argus
+
+WIDEBAND:
+  '25': 0.030
+  '65': 0.01158
+  '130': 0.00499
+  '180': 0.00306
+
+IBI_WINDOW:
+  '25': 0.030
+  '65': 0.030
+  '130': 0.030
+  '180': 0.030
+
+srate: 25000
+NPULSES_PER_BURST: 10

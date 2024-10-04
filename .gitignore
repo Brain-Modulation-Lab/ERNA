@@ -1,0 +1,15 @@
+e# Ignore temporary files
+*.tmp
+*.temp
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore folders with 'outputs' in their name
+outputs/
+
+# Ignore all .txt, .mat, and .json files
+*.txt
+*.mat
+*.json

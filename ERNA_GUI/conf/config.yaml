@@ -1,0 +1,31 @@
+logger:
+  level: DEBUG  # This will capture all log messages
+  handlers:
+    console:
+      class: logging.StreamHandler
+      formatter: simple
+  formatters:
+    simple:
+      format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
+hydra:
+  run:
+    dir: outputs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S}
+
+
+
+defaults:
+  - device: argus
+  - processing: default
+#  - override hydra/hydra_logging: disabled  
+#  - override hydra/job_logging: disabled  
+  
+#hydra:  
+#  output_subdir: null  
+#  run:  
+#    dir: .
+
+
+
+
+
