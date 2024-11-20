@@ -15,6 +15,7 @@ hydra:
 
 
 defaults:
+  - _self_  
   - device: argus
   - processing: default
 #  - override hydra/hydra_logging: disabled  

@@ -181,7 +181,8 @@ def plot_continuous_data(data_run, output_path = None, show = False):
         print(f"Saved html figure in {output_path + '.html'}")
         pio.write_image(fig, output_path + ".svg")
         print(f"Saved svg figure in {output_path + '.svg'}")
-    
+        pio.write_image(fig, output_path + ".png")
+        print(f"Saved svg figure in {output_path + '.png'}")       
     if show:
         fig.show()
     return 
@@ -214,7 +215,8 @@ def plot_stimChannelLocation(data_run, radius = 1,  output_path = None, show = F
         print(f"Saved html figure in {output_path + '.html'}")
         pio.write_image(fig, output_path + ".svg")
         print(f"Saved svg figure in {output_path + '.svg'}")
-    
+        pio.write_image(fig, output_path + ".png")
+        print(f"Saved svg figure in {output_path + '.png'}")       
     if show:
         fig.show()
     return 
@@ -314,7 +316,8 @@ def plot_IBImatrix(data_run, output_path = None, show = False):
         print(f"Saved html figure in {output_path + '.html'}")
         pio.write_image(fig, output_path + ".svg")
         print(f"Saved svg figure in {output_path + '.svg'}")
-    
+        pio.write_image(fig, output_path + ".png")
+        print(f"Saved svg figure in {output_path + '.png'}")   
     if show:
         fig.show()
 
@@ -567,7 +570,8 @@ def plot_IPIavg(data_run, device = "argus",range_y = None, output_path=None, sho
             print(f"Saved html figure in {output_path + '.html'}")
             pio.write_image(fig, output_path + ".svg")
             print(f"Saved svg figure in {output_path + '.svg'}")
-
+            pio.write_image(fig, output_path + ".png")
+            print(f"Saved svg figure in {output_path + '.png'}")   
         if show:
             fig.show()
     else:
@@ -834,7 +838,8 @@ def plot_IBIfeatures_dynamics(IBI_annot, ref = "time", stim_freq = None , output
         print(f"Saved html figure in {output_path + '.html'}")
         pio.write_image(fig, output_path + ".svg")
         print(f"Saved svg figure in {output_path + '.svg'}")
-    
+        pio.write_image(fig, output_path + ".png")
+        print(f"Saved svg figure in {output_path + '.png'}")       
     if show:
         fig.show()
         
@@ -1049,7 +1054,7 @@ def plot_IPIfeatures_dynamics(IPI_annot, timescale = "pulse", ref = None, stim_f
         fig.update_layout(
             xaxis1=dict(title=xlabel, range=[0.5, 10.5], showgrid=False, showline=True, linecolor='black', tickvals =np.arange(1,11)),
             xaxis2=dict(title=xlabel, range=[0.5, 10.5], showgrid=False, showline=True, linecolor='black', tickvals =np.arange(1,11)),
-            xaxis3=dict(title="Amplitude 10th pulse pre-burst [µV]", range=[100, 300], showgrid=False, showline=True, linecolor='black'),
+            xaxis3=dict(title="Amplitude 10th pulse pre-burst [µV]", showgrid=False, showline=True, linecolor='black'),
             
             xaxis4=dict(title=xlabel, range=[0.5, 10.5], showgrid=False, showline=True, linecolor='black', tickvals =np.arange(1,11)),
             xaxis5=dict(title=xlabel, range=[0.5, 10.5], showgrid=False, showline=True, linecolor='black', tickvals =np.arange(1,11)),
@@ -1058,7 +1063,7 @@ def plot_IPIfeatures_dynamics(IPI_annot, timescale = "pulse", ref = None, stim_f
             yaxis1=dict(title="Amplitude [µV]", showgrid=False, showline=True, linecolor='black'),
             yaxis4=dict(title="Amplitude Norm. [dB]", showgrid=False, showline=True, linecolor='black'),
             yaxis2=dict(title="Latency [ms]", range=[2.5, 6.5], showgrid=False, showline=True, linecolor='black'),
-            yaxis3=dict(title="Amplitude post 1st pulse post-burst [µV]", range=[100, 300], showgrid=False, showline=True, linecolor='black'),
+            yaxis3=dict(title="Amplitude post 1st pulse post-burst [µV]", showgrid=False, showline=True, linecolor='black'),
             
             yaxis5=dict(title="Latency diff. [ms]", showgrid=False, showline=True, linecolor='black'),
             yaxis6=dict(title="Latency post 1st pulse post-burst [ms]", range=[2.5, 6.5], showgrid=False, showline=True, linecolor='black'),
@@ -1180,7 +1185,8 @@ def plot_IPIfeatures_dynamics(IPI_annot, timescale = "pulse", ref = None, stim_f
         print(f"Saved html figure in {output_path + '.html'}")
         pio.write_image(fig, output_path + ".svg")
         print(f"Saved svg figure in {output_path + '.svg'}")
-    
+        pio.write_image(fig, output_path + ".png")
+        print(f"Saved svg figure in {output_path + '.png'}")      
     if show:
         fig.show()
     return

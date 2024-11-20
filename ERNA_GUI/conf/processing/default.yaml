@@ -12,7 +12,7 @@ preprocessing:
 
 pulse_identification:
   threshold: 50
-  detrend: "None"
+  detrend: "quadratic"
 
 ipi_identification:
   window_min: 2.5

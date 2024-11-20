@@ -1,10 +1,10 @@
 # participant config
-PARTICIPANTS_ID:
-  - DM2001
-  - DM2002
-  - DM2003
-  - DM2004
-  - DM2005
+
+PARTICIPANTS_ID: ""
+#  - DM2002
+#  - DM2003
+#  - DM2004
+#  - DM2005s
 
 
 # argus config

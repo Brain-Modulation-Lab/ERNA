@@ -8,6 +8,7 @@ import streamlit as st
 
 
 # setup paths
+@st.cache_data
 def setup_path(PARTICIPANT_ID: str, device: str) -> Dict[str,Any]:
     PARTICIPANT_DATA_PATH = f"/Volumes/Nexus4/ERNA/sourcedata/sub-{PARTICIPANT_ID}/ses-intraop/{device}"
     PARTICIPANT_ANNOT_PATH = f"/Volumes/Nexus4/ERNA/derivatives/sub-{PARTICIPANT_ID}/annot"

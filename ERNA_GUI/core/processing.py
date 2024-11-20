@@ -19,7 +19,7 @@ def load_erna_file(folder_path):
     if len(folder_path) > 0:
         mat_files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f)) and "_record" in os.path.join(folder_path, f)]
         if mat_files:
-            st.sidebar.write(f"{len(mat_files)} Argus txt files found in this participant.")
+            st.sidebar.write(f"{len(mat_files)} txt files found in this participant.")
         else:
             st.write("No txt files found in the uploaded folder.")
     else:
