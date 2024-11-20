@@ -8,8 +8,10 @@ __pycache__/
 
 # Ignore folders with 'outputs' in their name
 outputs/
+.egg-info/
 
 # Ignore all .txt, .mat, and .json files
 *.txt
 *.mat
 *.json
+
