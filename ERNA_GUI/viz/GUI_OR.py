@@ -52,33 +52,39 @@ elif st.session_state.MONTAGE_HEMI == 'RH':
 async def handle_connection(websocket, path=None):
     global data_buffer, data_metadata, runinfo, montage
     async for message in websocket:
-        try:
-            data = json.loads(message)
-            stream = data['stream']
-            # Handle runinfo data
-            if data['streaminfo'] == 'runinfo':
-                
-                runinfo = {key: stream[key] for key in RUNINFO_TOSHOW if key in stream}
-                montage = stream.get(MONTAGE_TOSHOW, [])
 
-            # Handle rundata (streaming x, y data)
-            elif data['streaminfo'] == 'rundata':
-                new_data = list(zip(stream["x"], stream["y"]))  # Create pairs of (x, y)
+        if message == "ping":
+            await websocket.send("pong")
+            print("Server received ping!")
 
-                # Append new data to the buffer
-                data_buffer.extend(new_data)
+        else:
+            try:
+                data = json.loads(message)
+                stream = data['stream']
+                # Handle runinfo data
+                if data['streaminfo'] == 'runinfo':
+                    
+                    runinfo = {key: stream[key] for key in RUNINFO_TOSHOW if key in stream}
+                    montage = stream.get(MONTAGE_TOSHOW, [])
 
-                # Update metadata
-                data_metadata["last_update"] = time.time()
-                data_metadata["last_update_format"] = datetime.fromtimestamp(data_metadata["last_update"]).strftime("%Y-%m-%d: %H.%M.%S")
-                data_metadata["total_data_received"] += len(new_data)
+                # Handle rundata (streaming x, y data)
+                elif data['streaminfo'] == 'rundata':
+                    new_data = list(zip(stream["x"], stream["y"]))  # Create pairs of (x, y)
 
-            # Limit buffer size to the last BUFFER_SIZE data points
-            if len(data_buffer) > BUFFER_SIZE:
-                data_buffer = data_buffer[-BUFFER_SIZE:]
+                    # Append new data to the buffer
+                    data_buffer.extend(new_data)
 
-        except Exception as e:
-            print(f"Error processing message: {e}")
+                    # Update metadata
+                    data_metadata["last_update"] = time.time()
+                    data_metadata["last_update_format"] = datetime.fromtimestamp(data_metadata["last_update"]).strftime("%Y-%m-%d: %H.%M.%S")
+                    data_metadata["total_data_received"] += len(new_data)
+
+                # Limit buffer size to the last BUFFER_SIZE data points
+                #if len(data_buffer) > BUFFER_SIZE:
+                #    data_buffer = data_buffer[-BUFFER_SIZE:]
+
+            except Exception as e:
+                print(f"Error processing message: {e}")
 
 # WebSocket server function
 async def start_websocket_server():
@@ -102,7 +108,7 @@ if start_button:
         if runinfo:
             # Display runinfo data as a table
             runinfo_df = pd.DataFrame([runinfo])  # Convert runinfo dictionary to DataFrame
-            runinfo_placeholder.dataframe(runinfo_df)
+            runinfo_placeholder.dataframe(runinfo_df.set_index(runinfo_df.columns[0]))
             #st.session_state.MONTAGE_HEMI = runinfo['STIM_HEMI']
 
         if montage:
@@ -132,6 +138,9 @@ if start_button:
                 # Update the plot
                 #with tabLH:
                 plot_placeholder.line_chart(df, x='X', y='Y')  # Plot the data
+
+                # clear buffer [to check]
+                data_buffer.clear()
 
                 # Display metadata
                 metadata_placeholder.write(f"Data Size: {len(data_buffer)}")
