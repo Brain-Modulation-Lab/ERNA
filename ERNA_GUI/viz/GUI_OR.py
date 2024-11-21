@@ -7,11 +7,14 @@ import threading
 import time
 from datetime import datetime
 
+from plotting_OR import create_electrode_layout
+
 # Global buffer to store received data
 data_buffer = []
 data_metadata = {"last_update": None, "total_data_received": 0}
 runinfo = {}
 montage = []
+ping_check = False
 
 # variables of interest
 RUNINFO_TOSHOW = ['SUBJECT','RUN_ID','DIGOUT','MONTAGE','STIM_HEMI','STIMSEQ']
@@ -27,8 +30,15 @@ montage_placeholder = st.empty()
 status_placeholder = st.empty()
 metadata_placeholder = st.empty()
 
-start_button = st.button("Start Streaming")
+
+
 plot_placeholder = st.empty()
+
+
+st.sidebar.title("Streaming check:")
+# start threader
+start_streaming = st.sidebar.button("Start streaming")
+ping_status_placeholder = st.sidebar.empty()
 
 # Buffer size limit
 BUFFER_SIZE = 3000  # Higher than ripple buffer
@@ -38,6 +48,8 @@ INACTIVITY_TIMEOUT = 5  # Clear buffer after 5 seconds of inactivity
 if 'MONTAGE_HEMI' not in st.session_state.keys():
     st.session_state.MONTAGE_HEMI = None
 
+if 'PING_TEST' not in st.session_state.keys():
+    st.session_state.PING_TEST = False
 '''
 if st.session_state.MONTAGE_HEMI == 'bilateral':
     [tabLH, tabRH] = plot_placeholder.tabs(["Left hemisphere","Right Hemisphere"])
@@ -50,12 +62,13 @@ elif st.session_state.MONTAGE_HEMI == 'RH':
 
 # WebSocket server handler to accept incoming data
 async def handle_connection(websocket, path=None):
-    global data_buffer, data_metadata, runinfo, montage
+    global data_buffer, data_metadata, runinfo, montage, ping_check
     async for message in websocket:
 
         if message == "ping":
             await websocket.send("pong")
             print("Server received ping!")
+            ping_check = True
 
         else:
             try:
@@ -83,6 +96,7 @@ async def handle_connection(websocket, path=None):
                 #if len(data_buffer) > BUFFER_SIZE:
                 #    data_buffer = data_buffer[-BUFFER_SIZE:]
 
+
             except Exception as e:
                 print(f"Error processing message: {e}")
 
@@ -98,60 +112,79 @@ def start_websocket_server_in_thread():
     loop.run_until_complete(start_websocket_server())
 
 # Streamlit UI for real-time plotting and table
-if start_button:
-    # Start WebSocket server in a separate thread
+# Start WebSocket server in a separate thread
+
+if start_streaming:
     threading.Thread(target=start_websocket_server_in_thread, daemon=True).start()
+ 
+    ping_status_placeholder.warning("Waiting for ping test!")
+    plot_container = st.container()
+
+    tabLH, tabRH = plot_container.tabs(["Left Hemisphere", "Right Hemisphere"])
+    
+    with tabLH:
+        figLH = create_electrode_layout(label = [["","L3",""],["L2a","L2b","L2c"],["L1a","L1b","L1c"],["","L0",""]])
+        st.plotly_chart(figLH, key = 'LH')
+
+    with tabRH:
+        figRH = create_electrode_layout(label = [["","R3",""],["R2a","R2b","R2c"],["R1a","R1b","R1c"],["","R0",""]])
+        st.plotly_chart(figRH, key = 'RH')
 
     # Streamlit update loop
     while True:
 
-        if runinfo:
-            # Display runinfo data as a table
-            runinfo_df = pd.DataFrame([runinfo])  # Convert runinfo dictionary to DataFrame
-            runinfo_placeholder.dataframe(runinfo_df.set_index(runinfo_df.columns[0]))
-            #st.session_state.MONTAGE_HEMI = runinfo['STIM_HEMI']
+        if ping_check:
+            ping_status_placeholder.success("Ping-test success! Connection is done.")
 
-        if montage:
-            # Display montage data as a table
-            with montage_placeholder.expander("Montage Data"):
-                if isinstance(montage, list):
-                    montage_df = pd.DataFrame(montage)  # Convert montage list to DataFrame
-                    st.dataframe(montage_df)  # Display montage inside the expander
+
+
+
+            if runinfo:
+                # Display runinfo data as a table
+                runinfo_df = pd.DataFrame([runinfo])  # Convert runinfo dictionary to DataFrame
+                runinfo_placeholder.dataframe(runinfo_df.set_index(runinfo_df.columns[0]))
+                #st.session_state.MONTAGE_HEMI = runinfo['STIM_HEMI']
+
+            if montage:
+                # Display montage data as a table
+                with montage_placeholder.expander("Montage Data"):
+                    if isinstance(montage, list):
+                        montage_df = pd.DataFrame(montage)  # Convert montage list to DataFrame
+                        st.dataframe(montage_df)  # Display montage inside the expander
+                    else:
+                        st.write("Montage data is not in expected format.")
+
+
+
+
+
+            if data_buffer:
+                # Clear stale data if inactivity timeout is exceeded
+                current_time = time.time()
+                if current_time - data_metadata.get("last_update", 0) > INACTIVITY_TIMEOUT:
+                    data_buffer.clear()
+                    status_placeholder.warning("Buffer cleared due to inactivity!")
+                    time.sleep(1)
                 else:
-                    st.write("Montage data is not in expected format.")
+                    # Create DataFrame from buffer
+                    df = pd.DataFrame(data_buffer, columns=["X", "Y"])
 
+                    # Update the plot
+                    #with tabLH:
+                    plot_placeholder.line_chart(df, x='X', y='Y')  # Plot the data
 
+                    # clear buffer [to check]
+                    data_buffer.clear()
 
+                    # Display metadata
+                    metadata_placeholder.write(f"Data Size: {len(data_buffer)}")
+                    metadata_placeholder.write(f"Metadata: {data_metadata}")
 
+                    # Indicate active streaming
+                    status_placeholder.success("Receiving data...")
 
-        if data_buffer:
-            # Clear stale data if inactivity timeout is exceeded
-            current_time = time.time()
-            if current_time - data_metadata.get("last_update", 0) > INACTIVITY_TIMEOUT:
-                data_buffer.clear()
-                status_placeholder.warning("Buffer cleared due to inactivity!")
-                time.sleep(1)
             else:
-                # Create DataFrame from buffer
-                df = pd.DataFrame(data_buffer, columns=["X", "Y"])
-
-                # Update the plot
-                #with tabLH:
-                plot_placeholder.line_chart(df, x='X', y='Y')  # Plot the data
-
-                # clear buffer [to check]
-                data_buffer.clear()
-
-                # Display metadata
-                metadata_placeholder.write(f"Data Size: {len(data_buffer)}")
-                metadata_placeholder.write(f"Metadata: {data_metadata}")
-
-                # Indicate active streaming
-                status_placeholder.success("Receiving data...")
-
-        else:
-            # Indicate no data received
-            status_placeholder.info("Waiting for data...")
-
-        # Sleep briefly to prevent excessive CPU usage
+                # Indicate no data received
+                status_placeholder.info("Waiting for data...")   
+        # Sleep briefly to prevent excaessive CPU usage
         time.sleep(0.1)
