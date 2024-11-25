@@ -7,7 +7,7 @@ import threading
 import time
 from datetime import datetime
 
-from plotting_OR import create_electrode_layout
+from plotting_OR import create_electrode_layout, plot_voltage
 
 # Global buffer to store received data
 data_buffer = []
@@ -40,6 +40,8 @@ st.sidebar.title("Streaming check:")
 start_streaming = st.sidebar.button("Start streaming")
 ping_status_placeholder = st.sidebar.empty()
 
+
+
 # Buffer size limit
 BUFFER_SIZE = 3000  # Higher than ripple buffer
 INACTIVITY_TIMEOUT = 5  # Clear buffer after 5 seconds of inactivity
@@ -50,14 +52,7 @@ if 'MONTAGE_HEMI' not in st.session_state.keys():
 
 if 'PING_TEST' not in st.session_state.keys():
     st.session_state.PING_TEST = False
-'''
-if st.session_state.MONTAGE_HEMI == 'bilateral':
-    [tabLH, tabRH] = plot_placeholder.tabs(["Left hemisphere","Right Hemisphere"])
-elif st.session_state.MONTAGE_HEMI == 'LH':
-    tabLH = plot_placeholder.tabs(["Left hemisphere"])
-elif st.session_state.MONTAGE_HEMI == 'RH':
-    tabRH = plot_placeholder.tabs(["Left hemisphere"])
-'''
+
 
 
 # WebSocket server handler to accept incoming data
@@ -120,15 +115,26 @@ if start_streaming:
     ping_status_placeholder.warning("Waiting for ping test!")
     plot_container = st.container()
 
-    tabLH, tabRH = plot_container.tabs(["Left Hemisphere", "Right Hemisphere"])
-    
+
+    # handle ERNA plot
+    tabLH, tabRH = plot_container.tabs(["Left Hemisphere", "Right Hemisphere"])   
     with tabLH:
         figLH = create_electrode_layout(label = [["","L3",""],["L2a","L2b","L2c"],["L1a","L1b","L1c"],["","L0",""]])
-        st.plotly_chart(figLH, key = 'LH')
+        #st.plotly_chart(figLH, key = 'LH')
 
     with tabRH:
         figRH = create_electrode_layout(label = [["","R3",""],["R2a","R2b","R2c"],["R1a","R1b","R1c"],["","R0",""]])
-        st.plotly_chart(figRH, key = 'RH')
+        #st.plotly_chart(figRH, key = 'RH')
+
+    st.sidebar.title("Plot settings:")
+    ERNA_yrange = st.sidebar.slider("Adjust voltage range [uV]", -1000, 1000, value = (-200,200))
+    ERNA_xrange = st.sidebar.slider("Adjust time range [ms]", -25, 50, value = (-10,30))
+    ERNA_winpeakrange = st.sidebar.slider("Adjust window peak [ms]", 1, 20, value = (2, 5))
+
+
+
+
+
 
     # Streamlit update loop
     while True:
@@ -173,6 +179,9 @@ if start_streaming:
                     #with tabLH:
                     plot_placeholder.line_chart(df, x='X', y='Y')  # Plot the data
 
+                    plot_voltage(figLH, df['X'], df['Y'], xlim, ylim, winpeak)
+                    plot_voltage(figRH, df['X'], df['Y'], xlim, ylim, winpeak)
+
                     # clear buffer [to check]
                     data_buffer.clear()
 
@@ -186,5 +195,6 @@ if start_streaming:
             else:
                 # Indicate no data received
                 status_placeholder.info("Waiting for data...")   
+
         # Sleep briefly to prevent excaessive CPU usage
         time.sleep(0.1)
