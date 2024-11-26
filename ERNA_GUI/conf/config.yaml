@@ -10,7 +10,7 @@ logger:
 
 hydra:
   run:
-    dir: outputs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S}
+    dir: logs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S}
 
 
 

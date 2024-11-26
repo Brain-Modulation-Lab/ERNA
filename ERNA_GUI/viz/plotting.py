@@ -177,8 +177,8 @@ def plot_continuous_data(data_run, output_path = None, show = False):
     
     if output_path is not None:
         print("Printing figure...")
-        fig.write_html(output_path + ".html") 
-        print(f"Saved html figure in {output_path + '.html'}")
+        #fig.write_html(output_path + ".html") 
+        #print(f"Saved html figure in {output_path + '.html'}")
         pio.write_image(fig, output_path + ".svg")
         print(f"Saved svg figure in {output_path + '.svg'}")
         pio.write_image(fig, output_path + ".png")
@@ -211,8 +211,8 @@ def plot_stimChannelLocation(data_run, radius = 1,  output_path = None, show = F
     
     if output_path is not None:
         print("Printing figure...")
-        fig.write_html(output_path + ".html") 
-        print(f"Saved html figure in {output_path + '.html'}")
+        #fig.write_html(output_path + ".html") 
+        #print(f"Saved html figure in {output_path + '.html'}")
         pio.write_image(fig, output_path + ".svg")
         print(f"Saved svg figure in {output_path + '.svg'}")
         pio.write_image(fig, output_path + ".png")
@@ -312,8 +312,8 @@ def plot_IBImatrix(data_run, output_path = None, show = False):
     
     if output_path is not None:
         print("Printing figure...")
-        fig.write_html(output_path + ".html") 
-        print(f"Saved html figure in {output_path + '.html'}")
+        #fig.write_html(output_path + ".html") 
+        #print(f"Saved html figure in {output_path + '.html'}")
         pio.write_image(fig, output_path + ".svg")
         print(f"Saved svg figure in {output_path + '.svg'}")
         pio.write_image(fig, output_path + ".png")
@@ -566,8 +566,8 @@ def plot_IPIavg(data_run, device = "argus",range_y = None, output_path=None, sho
         # Save and/or show the plot
         if output_path is not None:
             print("Printing figure...")
-            fig.write_html(output_path + ".html") 
-            print(f"Saved html figure in {output_path + '.html'}")
+            #fig.write_html(output_path + ".html") 
+            #print(f"Saved html figure in {output_path + '.html'}")
             pio.write_image(fig, output_path + ".svg")
             print(f"Saved svg figure in {output_path + '.svg'}")
             pio.write_image(fig, output_path + ".png")
@@ -828,14 +828,16 @@ def plot_IBIfeatures_dynamics(IBI_annot, ref = "time", stim_freq = None , output
             showline=True, linecolor='black'# No gridlines for secondary y-axis in subplot 3
         ),
 
-        title="IBI feature dynamics"
+        title="IBI feature dynamics",
+        width = 1200,
+        height = 400
     )
 
     
     if output_path is not None:
         print("Printing figure...")
-        fig.write_html(output_path + ".html") 
-        print(f"Saved html figure in {output_path + '.html'}")
+        #fig.write_html(output_path + ".html") 
+        #print(f"Saved html figure in {output_path + '.html'}")
         pio.write_image(fig, output_path + ".svg")
         print(f"Saved svg figure in {output_path + '.svg'}")
         pio.write_image(fig, output_path + ".png")
@@ -1181,8 +1183,8 @@ def plot_IPIfeatures_dynamics(IPI_annot, timescale = "pulse", ref = None, stim_f
     # Show the figure
     if output_path is not None:
         print("Printing figure...")
-        fig.write_html(output_path + ".html") 
-        print(f"Saved html figure in {output_path + '.html'}")
+        #fig.write_html(output_path + ".html") 
+        #print(f"Saved html figure in {output_path + '.html'}")
         pio.write_image(fig, output_path + ".svg")
         print(f"Saved svg figure in {output_path + '.svg'}")
         pio.write_image(fig, output_path + ".png")

@@ -359,6 +359,7 @@ def main(cfg:DictConfig):
     logger = logging.getLogger(__name__)
     logger.info("This is a log for the job.")
     logger.info("Job initialization...")
+    print("starting")
     
     try:
         PARTICIPANT = setup_path(PARTICIPANT_ID, device= cfg.device.NAME)

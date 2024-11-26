@@ -19,7 +19,7 @@ ipi_identification:
   mad_outlier_threshold: 6
 
 ibi_identification:
-  peak_prominence: 5
+  peak_prominence: 7.5
   peak_width: 0.5
   mindist_perc: 0.25
   min_peaks: 2
@@ -27,4 +27,4 @@ ibi_identification:
 
 output:
   store_flag: True
-  savefig_flag: True
+  savefig_flag: False 
