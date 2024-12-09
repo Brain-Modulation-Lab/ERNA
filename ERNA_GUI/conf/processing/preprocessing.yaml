@@ -1,0 +1,35 @@
+
+
+# preprocessing config
+preprocessing:
+  flow_cut: 1000
+  fhigh_cut: 2
+  order_low: 4
+  order_high: 4
+  flip_polarity: False
+
+#flip_polarity: False
+
+pulse_identification:
+  threshold: 50
+  detrend: "quadratic"
+
+ipi_identification:
+  peak_prominence: 10
+  window_min: 2.5
+  window_max_depends_on_srate: True 
+  window_max: None
+  mad_outlier_threshold: 6
+
+ibi_identification:
+  peak_prominence: 10
+  peak_width: 0.5
+  window_min: 2.75
+  window_max: 5.5
+  mindist: 0.25
+  min_peaks: 2
+  npeaks: 8
+
+output:
+  write_flag: True
+  ask_before_overwrite: False

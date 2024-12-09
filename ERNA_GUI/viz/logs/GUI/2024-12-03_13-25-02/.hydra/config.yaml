@@ -1,0 +1,48 @@
+logger:
+  level: DEBUG
+  handlers:
+    console:
+      class: logging.StreamHandler
+      formatter: simple
+  formatters:
+    simple:
+      format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+device:
+  PARTICIPANTS_ID: ''
+  NAME: argus
+  WIDEBAND:
+    '25': 0.03
+    '65': 0.01158
+    '130': 0.00499
+    '180': 0.00306
+  IBI_WINDOW:
+    '25': 0.03
+    '65': 0.03
+    '130': 0.03
+    '180': 0.03
+  srate: 25000
+  NPULSES_PER_BURST: 10
+processing:
+  preprocessing:
+    flow_cut: 1000
+    fhigh_cut: 2
+    order_low: 4
+    order_high: 4
+    flip_polarity: false
+  pulse_identification:
+    threshold: 50
+    detrend: quadratic
+  ipi_identification:
+    peak_prominence: 10
+    window_min: 2.5
+    window_max_depends_on_srate: true
+    mad_outlier_threshold: 6
+  ibi_identification:
+    peak_prominence: 10
+    peak_width: 0.5
+    mindist_perc: 0.25
+    min_peaks: 2
+    npeaks: 8
+  output:
+    store_flag: true
+    savefig_flag: true

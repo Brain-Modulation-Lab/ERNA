@@ -3,12 +3,25 @@ import numpy as np
 import streamlit as st
 import pandas as pd
 
-from ERNA_GUI.core.processing import load_erna_file, load_selected_file, load_erna_annots
-from ERNA_GUI.core.processing import preprocess_erna, extract_pulses, extract_erna_slice
-from ERNA_GUI.core.processing import compute_IPI_features, compute_IBI_features
-from ERNA_GUI.core.processing import set_cmap, remove_zerostim, flatten_ipi_features
-from ERNA_GUI.viz.plotting import plot_3Dmesh, show_recordings
+from ERNA_GUI.io.general import (
+    load_erna_file, load_selected_file, load_erna_annots,
+)
+
+from ERNA_GUI.utils.preproc_utils import (
+    remove_zerostim, preprocess_erna, extract_pulses, extract_erna_slice,
+    flatten_ipi_features, compute_IBI_features, compute_IPI_features,
+    fetch_stimCh_coordinates, fetch_run_task, fetch_run_details
+)
+
+
+from ERNA_GUI.viz.plotting import (
+    plot_3Dmesh, show_recordings,
+    plot_voltage,plot_erna_stimartefact,
+    plot_ipi, plot_ibi, plot_features
+)
+
 from ERNA_GUI.io.general import setup_path
+
 import matplotlib.pyplot as plt
 import json
 import plotly.graph_objects as go
@@ -67,7 +80,13 @@ def main(cfg: DictConfig):
 
         uploaded_files = PARTICIPANT['data_path']
         annot_files = PARTICIPANT['annot_path']
-        run_annot, stimScan_annot, ampRamp_annot, channels_annot, coords_annot = load_erna_annots(annot_files, participant)
+        # get annotation files
+        erna_annots = load_erna_annots(annot_files, participant, annot_keys = "raw")
+        run_annot = erna_annots['run_annot']
+        stimScan_annot = erna_annots["stimScan_annot"]
+        ampRamp_annot = erna_annots["ampRamp_annot"]
+        channels_annot = erna_annots["channels_annot"]
+        coords_annot = erna_annots["coords_annot"]
 
         mat_files = load_erna_file(uploaded_files)
         selected_file = st.sidebar.selectbox("Select a TXT file", mat_files)
@@ -104,40 +123,48 @@ def main(cfg: DictConfig):
 
                 
 
-            task = run_annot.loc[run_annot['Run'] == run, 'Task'].values[0]
-
-            if task == "stimScan":
-                run_details = stimScan_annot[stimScan_annot['Run'] == run]
-            elif task == "ampRamp":
-                run_details = ampRamp_annot[ampRamp_annot['Run'] == run]
-            else:
-                st.error("This is not a valid task")
-                return
-
+            task = fetch_run_task(run_annot, run)
+ 
+            #if task == "stimScan":
+            #    run_details = stimScan_annot[stimScan_annot['Run'] == run]
+            #elif task == "ampRamp":
+            #    run_details = ampRamp_annot[ampRamp_annot['Run'] == run]
+            #else:
+            #    st.error("This is not a valid task")
+            #    return
+            
+            run_details = fetch_run_details({'ampRamp': ampRamp_annot, 'stimScan' : stimScan_annot}, run_annot, run)
+            
+            coords_dict = fetch_stimCh_coordinates(run_details, channels_annot, coords_annot)
+            
             stim_freq = run_details['Freq'].values[0]
+            
             # Get the StimC value from run_details
-            stimCh = run_details['StimC'].values[0]
+            #stimCh = run_details['StimC'].values[0]
 
             # Get the name where channel matches StimC
             # Split stimCh if it contains multiple channels
-            channels_to_query = stimCh.split('-')
+            #channels_to_query = stimCh.split('-')
 
             # Fetch names corresponding to all channels
-            channel_stims = channels_annot.loc[channels_annot['channel'].isin(channels_to_query), 'name'].values
+            #channel_stims = channels_annot.loc[channels_annot['channel'].isin(channels_to_query), 'name'].values
             
             # If you need them as a list or a concatenated string
-            channelStim = list(channel_stims)  # as a list
-            channelStim_string = '-'.join(channel_stims)  # as a string
+            #channelStim = list(channel_stims)  # as a list
+            #channelStim_string = '-'.join(channel_stims)  # as a string
         
     
 
             #channelStim = channels_annot.loc[channels_annot['channel'] == stimCh, 'name'].values[0]
             
             # Assuming channelStim is a list of names
-            coords_rec = []
-            for name in channelStim:
-                coords_rec.append(coords_annot.loc[coords_annot['name'] == name, ['mni_x', 'mni_y', 'mni_z']].values[0])# Append the coordinates
-            coords_rec = np.array(coords_rec)
+            #coords_rec = []
+            #for name in channelStim:
+            #    coords_rec.append(coords_annot.loc[coords_annot['name'] == name, ['mni_x', 'mni_y', 'mni_z']].values[0])# Append the coordinates
+            
+            coords_rec = coords_dict['coords']['mni']
+            
+            channelStim_string = coords_dict['name']
 
             #coords_rec = coords_annot.loc[coords_annot['name'] == channelStim, ['mni_x','mni_y','mni_z']].values[0]
             #channelStim = channels_annot['channel'] == stimCh, 'name'].values
@@ -177,30 +204,37 @@ def main(cfg: DictConfig):
             expander_ipi = st.sidebar.expander("Details show ERNA in pulses (IPI)")
             is_ipi_plot_collapsed = expander_ipi.toggle("Collapse IPI plot in burst")
             is_ipi_features = expander_ipi.toggle("Extract IPI features")
+            peak_prom_ipi = expander_ipi.number_input("Threshold peak IPI prominence [uV]", value=cfg.processing.ipi_identification.peak_prominence)            
             win_ipi_min = expander_ipi.number_input("Window min [ms]", value=cfg.processing.ipi_identification.window_min)
-            win_ipi_max = expander_ipi.number_input("Window max [ms]", value=1/stim_freq*1000 - 1.2)
+            win_ipi_max = expander_ipi.number_input("Window max [ms]", value=1/stim_freq*1000 - 1)
             num_mad_outlier = expander_ipi.number_input("MAD outlier thr [#]", value=cfg.processing.ipi_identification.mad_outlier_threshold)
             
             
-            thr_ipi_params = {'win_ipi_min':win_ipi_min,
+            thr_ipi_params = {
+                            'peak_prom_ipi': peak_prom_ipi,
+                            'win_ipi_min':win_ipi_min,
                             'win_ipi_max':win_ipi_max,
-                            "num_mad_outlier": num_mad_outlier
+                            "num_mad_outlier": num_mad_outlier,                          
             }
                 
             #thr_pulses = expander_polarity.number_input("Threshold for pulses [Voltage]", value=50)
             identiy_ibi_on = st.sidebar.checkbox("Identify ERNA after burst (IBI)")
             expander_ibi = st.sidebar.expander("Details show ERNA after burst (IBI)")
             is_ibi_features = expander_ibi.toggle("Extract IBI features")
-            thr_ibi_peakprom = expander_ibi.number_input("Threshold peak prominence [uV]", value=cfg.processing.ibi_identification.peak_prominence)
+            thr_ibi_peakprom = expander_ibi.number_input("Threshold peak IBI prominence [uV]", value=cfg.processing.ibi_identification.peak_prominence)
             thr_ibi_peakwidth = expander_ibi.number_input("Threshold peak width [ms]", value=cfg.processing.ibi_identification.peak_width)
-            thr_ibi_mindist = expander_ibi.number_input("Threshold peaks distance [ms]", value= cfg.processing.ibi_identification.mindist_perc/stim_freq*1000) # default 25% IPI
+            win_ibi_min = expander_ibi.number_input("Window min peak [ms]", value=cfg.processing.ibi_identification.window_min)
+            win_ibi_max = expander_ibi.number_input("Window max peak [ms]", value=cfg.processing.ibi_identification.window_max)            
+            thr_ibi_mindist = expander_ibi.number_input("Min peaks distance [ms]", value= cfg.processing.ibi_identification.mindist) # default 25% IPI
             thr_ibi_minpeaks= expander_ibi.number_input("Threshold # peaks [#]", value= cfg.processing.ibi_identification.min_peaks) 
             thr_ibi_npeaks= expander_ibi.number_input("Maximum # peaks [#]", value= cfg.processing.ibi_identification.npeaks) 
             
             
             thr_ibi_params = {'peak_prom': thr_ibi_peakprom,
                             'peak_width': np.round(thr_ibi_peakwidth*srate/1000),
-                            'mindist': np.round(thr_ibi_mindist*srate/1000),
+                            'win_ibi_min':win_ibi_min,
+                            'win_ibi_max':win_ibi_max   ,                            
+                            'mindist_prop': np.round(thr_ibi_mindist*srate/1000),
                             'minpeaks' : thr_ibi_minpeaks,                          
                             'npeaks': thr_ibi_npeaks          
             }
@@ -224,25 +258,11 @@ def main(cfg: DictConfig):
                 win_slid = col1.slider('Time slider', min_value=int(time[0]), max_value=int(time[-1]), value=44700)
                 win_size = col2.number_input("Window size [ms]")
                 col4, col5= st.columns([3,2])
-        
-                fig, ax = plt.subplots()
-                ax2 = ax.twinx()
-                ax.plot(time, st.session_state.erna, linewidth=0.4)
-                ax2.plot(timebursts, stim_amp, color='m', linewidth=2)
-                for x in timebursts:
-                    ax.axvline(x=x, color='r', linestyle='--', linewidth=0.4)
-
-                if win_size:
-                    ax.set_xlim((win_slid, win_slid + win_size * 1E-3))
-                    ax2.set_xlim((win_slid, win_slid + win_size * 1E-3))
-
-                ax.set_xlabel('time [GTC]')
-                ax.set_ylabel('Voltage')
-                ax2.set_ylabel('Stim. amp [mA]')
+                fig = plot_voltage(time, st.session_state.erna, stim_amp, timebursts, win_size, win_slid)
                 col4.pyplot(fig)
                 
                 # show STN with recordings
-                figSTN = show_recordings(figSTN, coords_rec, radius = 0.45)
+                figSTN = show_recordings(figSTN, coords_rec, radius = 0.45)              
                 col5.plotly_chart(figSTN)
                 
 
@@ -289,21 +309,7 @@ def main(cfg: DictConfig):
                         erna_pulses_toplot = erna_pulses[timeburst]
                         time_erna_pulses_toplot = (time_erna_pulses[timeburst] - timeburst)*1000
 
-                        fig, ax = plt.subplots()
-                        ax.plot(time_erna_pulses_toplot, erna_pulses_toplot)
-                        ax.axvline(x=0, color='r', linestyle='--', linewidth=0.4, alpha = 0.8)
-                        ax.set_xlabel("Time after burst [ms]")
-                        ax.set_ylabel('LFP [uV]')
-
-
-                        
-                        if erna_pulses_toplot.any():
-                            ax2 = ax.twinx()
-                            ax2.plot(time_erna_pulses_toplot[:-1], np.diff(erna_pulses_toplot), color='r', alpha = 0.4)
-                            ax2.set_ylabel('Derivative Voltage', color='r')
-                            #col13.text_input('Number of Pulses:', value=len(pulse_locs[timeburst]))
-                            for x in pulse_locs[timeburst]:
-                                ax.axvline(x=(x - timeburst)*1000, color='g', linestyle='--', linewidth=0.4)
+                        fig = plot_erna_stimartefact(time_erna_pulses_toplot, erna_pulses_toplot, pulse_locs[timeburst], timeburst)
                         pulse_expander.info(f"Identified # {len(pulse_locs[timeburst])} pulses in the burst # {st.session_state.timeburst}. The current stimulation is {stim_amp[st.session_state.timeburst]} mA.")
                         pulse_expander.pyplot(fig)
                         
@@ -336,37 +342,9 @@ def main(cfg: DictConfig):
                             
 
                             timeburst = timebursts[st.session_state.timeburst]
-                        # Plot IPI data
-                            cm = plt.cm.hot
-                            
-                            norm, sm = set_cmap(1, len(erna_slice[timeburst]['ipi'].values()), cm)
-                                        
-                            fig_ipi, ax = plt.subplots()
-                            for i, (pulse, ipi_data) in enumerate(erna_slice[timeburst]['ipi'].items()):
-                                if is_ipi_plot_collapsed:
-                                    plt.plot((ipi_data['time'] - pulse)*1000, ipi_data['erna'], color = cm(norm(i)))      
-                                    ax.set_xlabel('Time after pulse [ms]')
-                                    ax.set_xlim(-0.3,1/stim_freq*1000 + 0.3)  
-                                    ax.axvline(0,linestyle='--',color= 'k')   
-                                    ax.axvline(1/stim_freq*1000,linestyle='--',color= 'k')    
-                                    ax.axvspan(0, cfg.device.WIDEBAND[str(stim_freq)]*1000, color='g', alpha=0.01)
-                                
-                                    if is_ipi_features:
-                                        if pulse in IPI_features[timeburst].keys():
-                                            ax.scatter(IPI_features[timeburst][pulse]['latency'],IPI_features[timeburst][pulse]['peak'], s = IPI_features[timeburst][pulse]['peak'], color =cm(norm(i)), alpha = 0.8)
-                                            ax.axvline(IPI_features[timeburst][pulse]['latency'],linestyle='--',color =cm(norm(i)), linewidth = 0.8)
-                            
-                                        
-                                                
-                                                        
-                                else:
-                                    plt.plot(ipi_data['time']*1000, ipi_data['erna'], color = cm(norm(i)))
-                                    ax.set_xlabel('Time [ms]')
+                            # Plot IPI data
+                            fig_ipi = plot_ipi(erna_slice[timeburst], IPI_features[timeburst], is_ipi_plot_collapsed, is_ipi_features, stim_freq, cfg.device.WIDEBAND[str(stim_freq)]*1000)
 
-                            
-                            ax.set_ylabel('Erna [uV]')
-                            cbar = fig_ipi.colorbar(sm, ax= ax)
-                            cbar.set_label('# pulse')
                             #ax.title(f'Erna slices for Burst {timeburst}')
                             if is_ipi_plot_collapsed:
                                 ipi_expander.info(f" {len(pulse_locs[timeburst])} pulses in the burst # {st.session_state.timeburst}. The current stimulation is {stim_amp[st.session_state.timeburst]} mA. The plot is collapsed around pulse onset.")
@@ -401,32 +379,7 @@ def main(cfg: DictConfig):
                         timeburst = timebursts[st.session_state.timeburst]
                         
                         # Plot IbI data
-                        fig_ibi, ax = plt.subplots()
-                        
-                        ibi_data = erna_slice[timeburst]['ibi']
-                        
-                        # Plot ERNA data
-                        ax.plot((ibi_data['time'] - timeburst) * 1000, ibi_data['erna'], color='k')
-                        ax.set_xlabel('Time after burst [ms]')
-                        ax.axvline(0, linestyle='--', color='k')   
-                        ax.set_ylabel('Erna [uV]')
-                        
-                        # Plot peaks and troughs if IBI features are available and ERNA_flag is 1
-                        
-                        if is_ibi_features and IBI_features[timeburst]['ERNA_flag'] == 1:
-                            for _, peak in IBI_features[timeburst]['peaks'].items():
-                                ax.scatter(peak['lat'], peak['amp'], s=abs(peak['amp']), color='r', alpha=1)
-                            for _, trough in IBI_features[timeburst]['troughs'].items():
-                                ax.scatter(trough['lat'], trough['amp'], s=abs(trough['amp']), color='b', alpha=1)  
-                        
-
-                            
-                            
-                            # Plot ERNA data
-                            ax.plot((ibi_data['time'] - timeburst) * 1000, ibi_data['erna'], color='k')
-                            ax.set_xlabel('Time after burst [ms]')
-                            ax.axvline(0, linestyle='--', color='k')   
-                            ax.set_ylabel('Erna [uV]')                 
+                        fig_ibi = plot_ibi(erna_slice[timeburst], IBI_features[timeburst], timeburst, is_ibi_features)             
                         
                         # Set plot title and display in Streamlit
                         #ax.set_title(f'ERNA slices for Burst {timeburst}')
@@ -437,57 +390,22 @@ def main(cfg: DictConfig):
                             tabAmp,tabLat,tabFreq = ibi_expander.tabs(
                              ['Amplitude', 'Latency', 'Frequency']
                             )   
-                            fig_gc, ax = plt.subplots()
                             
                             with tabAmp:
                                 # amplitude
-                                for key, value in IBI_features.items():
-                                    if value['ERNA_flag']:
-                                        ax.scatter(key, value['amplitude'], s=abs(value['amplitude']), color = 'k', alpha = 0.4)
-                                        #if value['npeaks'] >= 3:
-                                        #    print(value)
-                                        #    ax.scatter(key, value['peaks'][1]['amp'] - value['troughs'][1]['amp'], s=abs(value['peaks'][1]['amp'] - value['troughs'][1]['amp']), color = 'b', alpha = 0.4)                                   
-                                            
-                                ax.set_xlabel('Time burst [ms]')
-                                ax.set_ylabel('Erna peak-to-trough [uV]')
-                                if IBI_features[timeburst]['ERNA_flag'] == 1:
-                                    ax.scatter(timeburst, IBI_features[timeburst]['amplitude'], s=abs(IBI_features[timeburst]['amplitude']), color = 'r', alpha = 1)
-                                    #if IBI_features[timeburst]['npeaks'] >= 3:                           
-                                    #    ax.scatter(timeburst, IBI_features[timeburst]['peaks'][1]['amp'] - IBI_features[timeburst]['troughs'][1]['amp'], s=abs(IBI_features[timeburst]['peaks'][1]['amp'] - IBI_features[timeburst]['troughs'][1]['amp']), color = 'r', alpha = 1)
-                                    ax.axvline(timeburst, linestyle='--', color='k')  
-                            with tabLat:                            
+                                fig_gc = plot_features(IBI_features, time, timeburst, 'amplitude')
+                                st.pyplot(fig_gc)  
+                            with tabLat: 
+                                fig_gc = plot_features(IBI_features, time, timeburst, 'latency')
+                                st.pyplot(fig_gc)  
                                 # latency    
-                                for key, value in IBI_features.items():
-                                    if value['ERNA_flag']:
-                                        ax.scatter(key, value['latency'], s=abs(value['latency']), color = 'k', alpha = 0.4)
-                                        #if value['npeaks'] >= 3:
-                                        #    print(value)
-                                        #    ax.scatter(key, value['peaks'][1]['amp'] - value['troughs'][1]['amp'], s=abs(value['peaks'][1]['amp'] - value['troughs'][1]['amp']), color = 'b', alpha = 0.4)                                   
-                                            
-                                ax.set_xlabel('Time burst [ms]')
-                                ax.set_ylabel('Erna latency [ms]')
-                                if IBI_features[timeburst]['ERNA_flag'] == 1:
-                                    ax.scatter(timeburst, IBI_features[timeburst]['latency'], s=abs(IBI_features[timeburst]['latency']), color = 'r', alpha = 1)
-                                    #if IBI_features[timeburst]['npeaks'] >= 3:                           
-                                    #    ax.scatter(timeburst, IBI_features[timeburst]['peaks'][1]['amp'] - IBI_features[timeburst]['troughs'][1]['amp'], s=abs(IBI_features[timeburst]['peaks'][1]['amp'] - IBI_features[timeburst]['troughs'][1]['amp']), color = 'r', alpha = 1)
-                                    ax.axvline(timeburst, linestyle='--', color='k')  
-                            with tabFreq:                                                               
+
+                            with tabFreq:    
+                                fig_gc = plot_features(IBI_features, time, timeburst, 'frequency')
+                                st.plot(fig_gc)  
                                 # frequency    
-                                for key, value in IBI_features.items():
-                                    if value['ERNA_flag']:
-                                        ax.scatter(key, value['frequency'], s=abs(value['frequency']), color = 'k', alpha = 0.4)
-                                        #if value['npeaks'] >= 3:
-                                        #    print(value)
-                                        #    ax.scatter(key, value['peaks'][1]['amp'] - value['troughs'][1]['amp'], s=abs(value['peaks'][1]['amp'] - value['troughs'][1]['amp']), color = 'b', alpha = 0.4)                                   
-                                            
-                                ax.set_xlabel('Time burst [ms]')
-                                ax.set_ylabel('Erna frequency [Hz]')
-                                if IBI_features[timeburst]['ERNA_flag'] == 1:
-                                    ax.scatter(timeburst, IBI_features[timeburst]['frequency'], s=abs(IBI_features[timeburst]['frequency']), color = 'r', alpha = 1)
-                                    #if IBI_features[timeburst]['npeaks'] >= 3:                           
-                                    #    ax.scatter(timeburst, IBI_features[timeburst]['peaks'][1]['amp'] - IBI_features[timeburst]['troughs'][1]['amp'], s=abs(IBI_features[timeburst]['peaks'][1]['amp'] - IBI_features[timeburst]['troughs'][1]['amp']), color = 'r', alpha = 1)
-                                    ax.axvline(timeburst, linestyle='--', color='k')                                                                                             
-                            ibi_expander.pyplot(fig_gc)                        
+                                                                                                                 
+                                                  
                         
                 else:
                     ibi_container.warning('Activate Identify ERNA after burst (IBI) checkbox on the left', icon="⚠️")

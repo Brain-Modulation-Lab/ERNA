@@ -24,3 +24,7 @@ IBI_WINDOW:
 
 srate: 25000
 NPULSES_PER_BURST: 10
+
+TASKS:
+  - stimScan
+  - ampRamp

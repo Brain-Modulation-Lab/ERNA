@@ -6,7 +6,7 @@ import warnings
 from typing import Dict, Any
 
 import streamlit as st
-
+import re
 
 
 # loading function for input files
@@ -60,3 +60,62 @@ def timestamp2gtc(timestamp):
     return 60 * 60 * hrs + 60 * mns + scs    
         
 
+@st.cache_data
+def get_run_id(filename):
+    pattern = re.compile(r'record(\d+)')
+    match = pattern.search(filename)
+    return int(match.group(1))
+
+
+@st.cache_data
+def load_erna_file(folder_path):
+    if len(folder_path) > 0:
+        mat_files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f)) and "_record" in os.path.join(folder_path, f)]
+        if mat_files:
+            st.sidebar.write(f"{len(mat_files)} txt files found in this participant.")
+        else:
+            st.write("No txt files found in the uploaded folder.")
+    else:
+        mat_files = []
+    return mat_files
+
+@st.cache_data(persist=True)
+def load_selected_file(selected_file, max_fields = 3095):
+  
+    try:
+        df = pd.read_table(selected_file, header=None, skiprows=1, na_values = "not available")
+    except pd.errors.ParserError as e:
+        print(f"ParserError: {e}")
+        # Try reading with a different method or skip bad lines
+        try:
+            df = pd.read_csv(selected_file, header=None, skiprows=1, delimiter='\t', na_values = "not available")
+        except Exception as e:
+            print(f"Failed to read the file using fallback method: {e}")
+            ### Loop the data lines
+
+            try:
+              
+                ### Generate column names  (names will be 0, 1, 2, ..., maximum columns - 1)
+                column_names = [i for i in range(0, max_fields)]
+                
+                ### Read csv
+                df = pd.read_csv(selected_file, header=None, skiprows=1, delimiter='\t', na_values = "not available", usecols=column_names)
+                
+            except Exception as e:
+                print(f"An error occurred: {e}")
+   
+    
+
+    run_id = get_run_id(os.path.basename(selected_file))
+    data_cont_df, time_vect_cont, stim_amp, timebursts = get_argus_lfp(df, srate=25000) # this is onlt for argus
+    
+
+    return {
+        "run": run_id,
+        "time": time_vect_cont,
+        "data_cont": data_cont_df,
+        "stim_amp": stim_amp,
+        "timebursts": timebursts     
+    }
+    
+    
